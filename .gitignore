@@ -1,0 +1,13 @@
+svcca_dataset/
+cached_features/
+cache/
+checkpoints/
+logs/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw

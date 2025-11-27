@@ -1,0 +1,185 @@
+# SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: Apache-2.0
+
+"""
+Utility module for extracting intermediate features from GR00T model.
+This module provides hooks to extract features from all transformer layers in:
+1. Eagle VLM Backbone (vision tower + LLM layers)
+2. DiT Action Head (transformer blocks)
+"""
+
+import torch
+from typing import Dict, List
+from collections import OrderedDict
+
+
+class IntermediateFeatureExtractor:
+    """
+    A hook-based feature extractor for GR00T model.
+    Extracts intermediate features from all transformer layers in the model.
+    """
+    
+    def __init__(self, model):
+        """
+        Args:
+            model: GR00T_N1_5 model instance
+        """
+        self.model = model
+        self.features = OrderedDict()
+        self.hooks = []
+        
+    def _create_hook(self, name: str):
+        """Create a forward hook that stores the output tensor."""
+        def hook(module, input, output):
+            # Store the output feature
+            if isinstance(output, torch.Tensor):
+                self.features[name] = output.detach()
+            elif isinstance(output, tuple) and len(output) > 0:
+                # Some modules return tuples, take the first element (usually hidden states)
+                self.features[name] = output[0].detach() if isinstance(output[0], torch.Tensor) else output[0]
+            else:
+                self.features[name] = output
+        return hook
+    
+    def register_hooks(self):
+        """Register forward hooks on all transformer layers."""
+        self.clear_hooks()
+        self.features.clear()
+        
+        # 1. Vision Model - 27 x SiglipEncoderLayer
+        vision_layers = self.model.backbone.eagle_model.vision_model.vision_model.encoder.layers
+        for idx, layer in enumerate(vision_layers):
+            hook_name = f"backbone.vision.layer_{idx}"
+            hook = layer.register_forward_hook(self._create_hook(hook_name))
+            self.hooks.append(hook)
+            print(f"Registered hook: {hook_name}")
+        
+        # 2. Language Model - Qwen3DecoderLayer (typically 3 layers)
+        llm_layers = self.model.backbone.eagle_model.language_model.model.layers
+        for idx, layer in enumerate(llm_layers):
+            hook_name = f"backbone.llm.layer_{idx}"
+            hook = layer.register_forward_hook(self._create_hook(hook_name))
+            self.hooks.append(hook)
+            print(f"Registered hook: {hook_name}")
+        
+        # 3. Action Head DiT - 12 x BasicTransformerBlock
+        dit_blocks = self.model.action_head.model.transformer_blocks
+        for idx, block in enumerate(dit_blocks):
+            hook_name = f"action_head.dit.layer_{idx}"
+            hook = block.register_forward_hook(self._create_hook(hook_name))
+            self.hooks.append(hook)
+            print(f"Registered hook: {hook_name}")
+        
+        print(f"\nTotal hooks registered: {len(self.hooks)}")
+        return self
+    
+    def clear_hooks(self):
+        """Remove all registered hooks."""
+        for hook in self.hooks:
+            hook.remove()
+        self.hooks.clear()
+    
+    def get_features(self) -> Dict[str, torch.Tensor]:
+        """
+        Get the extracted intermediate features.
+        
+        Returns:
+            Dict mapping layer names to their output tensors.
+            Keys follow the format:
+            - "backbone.vision.layer_{idx}" for vision tower layers
+            - "backbone.llm.layer_{idx}" for LLM layers
+            - "action_head.vl_self_attention.layer_{idx}" for VL self-attention layers
+            - "action_head.dit.layer_{idx}" for DiT layers
+        """
+        return self.features.copy()
+    
+    def clear_features(self):
+        """Clear stored features to free memory."""
+        self.features.clear()
+    
+    def __enter__(self):
+        """Context manager entry - registers hooks."""
+        self.register_hooks()
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager exit - removes hooks."""
+        self.clear_hooks()
+        self.clear_features()
+
+
+def extract_features_from_forward(model, inputs: dict) -> Dict[str, torch.Tensor]:
+    """
+    Convenience function to extract features during a single forward pass.
+    
+    Args:
+        model: GR00T_N1_5 model instance
+        inputs: Input dictionary for the model
+        
+    Returns:
+        Dictionary of intermediate features from all transformer layers
+        
+    Example:
+        ```python
+        from feature_extraction_utils import extract_features_from_forward
+        
+        # Run model and extract features
+        features = extract_features_from_forward(model, inputs)
+        
+        # Access features
+        for layer_name, feature_tensor in features.items():
+            print(f"{layer_name}: {feature_tensor.shape}")
+        ```
+    """
+    extractor = IntermediateFeatureExtractor(model)
+    
+    with extractor:
+        # Run forward pass
+        _ = model.get_action(inputs)
+        # Get extracted features
+        features = extractor.get_features()
+    
+    return features
+
+
+def print_feature_shapes(features: Dict[str, torch.Tensor]):
+    """
+    Utility function to print shapes of all extracted features.
+    
+    Args:
+        features: Dictionary of features from extract_features_from_forward
+    """
+    print("\n" + "="*80)
+    print("EXTRACTED INTERMEDIATE FEATURES")
+    print("="*80)
+    
+    # Group by module
+    backbone_vision = {k: v for k, v in features.items() if k.startswith("backbone.vision")}
+    backbone_llm = {k: v for k, v in features.items() if k.startswith("backbone.llm")}
+    ah_vl_attn = {k: v for k, v in features.items() if k.startswith("action_head.vl_self_attention")}
+    ah_dit = {k: v for k, v in features.items() if k.startswith("action_head.dit")}
+    
+    if backbone_vision:
+        print("\n[Backbone - Vision Tower]")
+        for name, tensor in backbone_vision.items():
+            print(f"  {name}: {tensor.shape} [{tensor.dtype}]")
+    
+    if backbone_llm:
+        print("\n[Backbone - LLM Layers]")
+        for name, tensor in backbone_llm.items():
+            print(f"  {name}: {tensor.shape} [{tensor.dtype}]")
+    
+    if ah_vl_attn:
+        print("\n[Action Head - VL Self-Attention]")
+        for name, tensor in ah_vl_attn.items():
+            print(f"  {name}: {tensor.shape} [{tensor.dtype}]")
+    
+    if ah_dit:
+        print("\n[Action Head - DiT Transformer]")
+        for name, tensor in ah_dit.items():
+            print(f"  {name}: {tensor.shape} [{tensor.dtype}]")
+    
+    print("\n" + "="*80)
+    print(f"Total layers: {len(features)}")
+    print("="*80 + "\n")
+
