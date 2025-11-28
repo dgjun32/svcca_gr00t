@@ -108,18 +108,20 @@ class IntermediateFeatureExtractor:
         self.clear_features()
 
 
-def extract_features_from_forward(model, inputs: dict) -> Dict[str, torch.Tensor]:
+def extract_features_from_forward(model, inputs: dict, extractor=None) -> Dict[str, torch.Tensor]:
     """
     Convenience function to extract features during a single forward pass.
     
     Args:
         model: GR00T_N1_5 model instance
         inputs: Input dictionary for the model
+        extractor: (Optional) Pre-initialized IntermediateFeatureExtractor instance.
+                   If None, creates a new one (less efficient for repeated calls).
         
     Returns:
         Dictionary of intermediate features from all transformer layers
         
-    Example:
+    Example (one-time extraction):
         ```python
         from feature_extraction_utils import extract_features_from_forward
         
@@ -130,16 +132,43 @@ def extract_features_from_forward(model, inputs: dict) -> Dict[str, torch.Tensor
         for layer_name, feature_tensor in features.items():
             print(f"{layer_name}: {feature_tensor.shape}")
         ```
-    """
-    extractor = IntermediateFeatureExtractor(model)
     
-    with extractor:
+    Example (repeated extraction - more efficient):
+        ```python
+        from feature_extraction_utils import IntermediateFeatureExtractor, extract_features_from_forward
+        
+        # Create extractor once and reuse
+        extractor = IntermediateFeatureExtractor(model)
+        extractor.register_hooks()  # Register hooks once
+        
+        for batch in dataloader:
+            # Reuse extractor for each batch (more efficient)
+            features = extract_features_from_forward(model, batch, extractor=extractor)
+            # Process features...
+            extractor.clear_features()  # Clear to free memory
+        
+        extractor.clear_hooks()  # Clean up when done
+        ```
+    """
+    # If extractor is provided, use it (assumes hooks are already registered)
+    if extractor is not None:
+        # Clear previous features
+        extractor.clear_features()
         # Run forward pass
         _ = model.get_action(inputs)
         # Get extracted features
         features = extractor.get_features()
+        return features
     
-    return features
+    # Otherwise, create temporary extractor (less efficient for repeated calls)
+    else:
+        temp_extractor = IntermediateFeatureExtractor(model)
+        with temp_extractor:
+            # Run forward pass
+            _ = model.get_action(inputs)
+            # Get extracted features
+            features = temp_extractor.get_features()
+        return features
 
 
 def print_feature_shapes(features: Dict[str, torch.Tensor]):
