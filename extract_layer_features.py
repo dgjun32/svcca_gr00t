@@ -51,7 +51,7 @@ if __name__ == "__main__":
     
     # Create feature extractor once and register hooks
     print("Initializing feature extractor...")
-    feature_extractor = IntermediateFeatureExtractor(model)
+    feature_extractor = IntermediateFeatureExtractor(model) 
     feature_extractor.register_hooks()
     print(f"Registered hooks on model layers")
         
