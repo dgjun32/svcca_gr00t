@@ -27,18 +27,29 @@ class IntermediateFeatureExtractor:
         self.model = model
         self.features = OrderedDict()
         self.hooks = []
+        self.step_counters = {}  # Track step count for each layer (for diffusion)
         
     def _create_hook(self, name: str):
-        """Create a forward hook that stores the output tensor."""
+        """Create a forward hook that stores the output tensor with step tracking."""
         def hook(module, input, output):
+            # Initialize step counter for this layer if not exists
+            if name not in self.step_counters:
+                self.step_counters[name] = 0
+            
+            # Create unique name with step index
+            step_name = f"{name}_step_{self.step_counters[name]}"
+            
             # Store the output feature
             if isinstance(output, torch.Tensor):
-                self.features[name] = output.detach()
+                self.features[step_name] = output.detach()
             elif isinstance(output, tuple) and len(output) > 0:
                 # Some modules return tuples, take the first element (usually hidden states)
-                self.features[name] = output[0].detach() if isinstance(output[0], torch.Tensor) else output[0]
+                self.features[step_name] = output[0].detach() if isinstance(output[0], torch.Tensor) else output[0]
             else:
-                self.features[name] = output
+                self.features[step_name] = output
+            
+            # Increment step counter
+            self.step_counters[name] += 1
         return hook
     
     def register_hooks(self):
@@ -96,6 +107,7 @@ class IntermediateFeatureExtractor:
     def clear_features(self):
         """Clear stored features to free memory."""
         self.features.clear()
+        self.step_counters.clear()  # Reset step counters when clearing features
     
     def __enter__(self):
         """Context manager entry - registers hooks."""
