@@ -98,7 +98,7 @@ if __name__ == "__main__":
     # Create HDF5 file path
     os.makedirs(args.cache_path, exist_ok=True)
     dataset_name = os.path.basename(args.dataset_path.rstrip('/'))
-    model_name = args.model_path.split("/")[-2]
+    model_name = args.model_path.split("/")[-2] + "-" + args.model_path.split("/")[-1]
     h5_filename = f"model_{model_name}_dataset_{dataset_name}.hdf5"
     h5_path = os.path.join(args.cache_path, h5_filename)
     
