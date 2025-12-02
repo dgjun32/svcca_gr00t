@@ -57,29 +57,44 @@ class IntermediateFeatureExtractor:
         self.clear_hooks()
         self.features.clear()
         
-        # 1. Vision Model - 27 x SiglipEncoderLayer
-        vision_layers = self.model.backbone.eagle_model.vision_model.vision_model.encoder.layers
-        for idx, layer in enumerate(vision_layers):
-            hook_name = f"backbone.vision.layer_{idx}"
-            hook = layer.register_forward_hook(self._create_hook(hook_name))
-            self.hooks.append(hook)
-            print(f"Registered hook: {hook_name}")
-        
-        # 2. Language Model - Qwen3DecoderLayer (typically 3 layers)
+        # 1. Language Model - Last layer only (Qwen3DecoderLayer)
         llm_layers = self.model.backbone.eagle_model.language_model.model.layers
-        for idx, layer in enumerate(llm_layers):
-            hook_name = f"backbone.llm.layer_{idx}"
-            hook = layer.register_forward_hook(self._create_hook(hook_name))
-            self.hooks.append(hook)
-            print(f"Registered hook: {hook_name}")
+        last_llm_idx = len(llm_layers) - 1
+        hook_name = f"backbone.llm.layer_{last_llm_idx}"
+        hook = llm_layers[last_llm_idx].register_forward_hook(self._create_hook(hook_name))
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
         
-        # 3. Action Head DiT - 12 x BasicTransformerBlock
-        dit_blocks = self.model.action_head.model.transformer_blocks
-        for idx, block in enumerate(dit_blocks):
-            hook_name = f"action_head.dit.layer_{idx}"
+        # 2. Action Head State Encoder - CategorySpecificMLP (layer1, layer2)
+        hook_name = "action_head.state_encoder.layer1"
+        hook = self.model.action_head.state_encoder.layer1.register_forward_hook(
+            self._create_hook(hook_name)
+        )
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
+        
+        hook_name = "action_head.state_encoder.layer2"
+        hook = self.model.action_head.state_encoder.layer2.register_forward_hook(
+            self._create_hook(hook_name)
+        )
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
+        
+        # 3. Action Head VL Self-Attention - SelfAttentionTransformer blocks
+        vl_attn_blocks = self.model.action_head.vl_self_attention.transformer_blocks
+        for idx, block in enumerate(vl_attn_blocks):
+            hook_name = f"action_head.vl_self_attention.layer_{idx}"
             hook = block.register_forward_hook(self._create_hook(hook_name))
             self.hooks.append(hook)
             print(f"Registered hook: {hook_name}")
+        
+        # 4. Action Head DiT - 12 x BasicTransformerBlock
+        #dit_blocks = self.model.action_head.model.transformer_blocks
+        #for idx, block in enumerate(dit_blocks):
+        #    hook_name = f"action_head.dit.layer_{idx}"
+        #    hook = block.register_forward_hook(self._create_hook(hook_name))
+        #    self.hooks.append(hook)
+        #    print(f"Registered hook: {hook_name}")
         
         print(f"\nTotal hooks registered: {len(self.hooks)}")
         return self

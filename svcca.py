@@ -188,9 +188,9 @@ def compute_ccas(sigma_xx, sigma_xy, sigma_yx, sigma_yy, epsilon,
     # - 50: very fast, good for quick analysis
     # - 100: balanced speed/accuracy (default)
     # - 200: slower but more accurate
-    n_components = min(arr.shape[0], arr.shape[1], 100)  # Compute top 100 components
+    n_components = min(arr.shape[0], arr.shape[1])  # Compute all components for accurate CCA
     
-    if arr.shape[0] > 500 or arr.shape[1] > 500:
+    if arr.shape[0] > 1000 or arr.shape[1] > 1000:  # Only use randomized for very large matrices
         # Use randomized SVD for large matrices
         if verbose:
             print(f"Using randomized SVD with {n_components} components")
@@ -582,12 +582,14 @@ if __name__ == "__main__":
     #layers = get_layers("/home/dongjun/gr00t_analysis/cached_features/model_nvidia_dataset_pnp_coke_to_plastic_pick_split.hdf5")
     for layer in layers:
         print(layer)
+        '''
         seen_llm_layer_1 = load_feature(
             "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft_dataset_pnp_coke_to_plastic_place_split.hdf5", 
             layer)
         oracle_llm_layer_1 = load_feature(
             "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft-checkpoint-15000_dataset_segmented_depth_1_trash_separation_3_objs_unseen_251126_pnp_coke_to_plastic_place_split.hdf5", 
             layer)
+        '''
         
         #print(f"Loading took {time.time() - start:.2f}s")
         #print(f"seen shape: {seen_llm_layer_1.shape}")
@@ -595,11 +597,18 @@ if __name__ == "__main__":
         
         # Convert to torch and move to GPU
         #print("\nPreparing activations...")
+        '''
         start = time.time()
         h_dim = seen_llm_layer_1.shape[-1]
         #if len(seen_llm_layer_1.shape) == 3:
         act1 = torch.from_numpy(seen_llm_layer_1).type(torch.float32).cuda().reshape(-1, h_dim)
         act2 = torch.from_numpy(oracle_llm_layer_1).type(torch.float32).cuda().reshape(-1, h_dim)
+        '''
+        act = torch.randn(1000, 100).cuda()
+        #act1 = act
+        #act2 = act
+        act1 = act@torch.randn(100, 50).cuda()
+        act2 = act@torch.randn(100, 50).cuda()
         #else:
         #    act1 = torch.from_numpy(seen_llm_layer_1).cuda().mean(dim=1).mean(dim=1)
         #    act2 = torch.from_numpy(oracle_llm_layer_1).cuda().mean(dim=1).mean(dim=1)
@@ -621,7 +630,7 @@ if __name__ == "__main__":
             epsilon=1e-6, 
             compute_dirns=False,  # Set to False for faster computation if directions not needed
             device='cuda',
-            use_svcca=True,  # Use true SVCCA from paper (SVD preprocessing)
+            use_svcca=False,  # Use true SVCCA from paper (SVD preprocessing)
             svd_components=None  # Auto: keep 98% variance
         )
         elapsed = time.time() - start
@@ -633,6 +642,7 @@ if __name__ == "__main__":
         print(f"  Top 5 CCA coefficients: {return_dict['cca_coef1'][:5].cpu().numpy()}")
         print(f"{'='*50}")
         mean_cca_similarity[layer] = return_dict['mean'][0]
+        breakpoint()
     
     print('mean_cca_similarity: ', mean_cca_similarity)
     import json
