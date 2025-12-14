@@ -2,7 +2,7 @@ import os
 import sys
 # Disable flash attention to avoid ABI compatibility issues
 # Add gr00t to path if needed
-gr00t_path = "/home/dongjun/GR00T_Training"
+gr00t_path = "/home/dongjun/contrastive_gr00t"
 if gr00t_path not in sys.path:
     sys.path.insert(0, gr00t_path)
     
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     # Get eagle processor
     eagle_processor = build_eagle_processor(
-        '/home/dongjun/GR00T_Training/gr00t/model/backbone/eagle2_hg_model',
+        '/home/dongjun/contrastive_gr00t/gr00t/model/backbone/eagle2_hg_model',
         )
     eagle_processor.tokenizer.padding_side = "left"
 
@@ -86,7 +86,7 @@ if __name__ == "__main__":
         train_dataset,
         batch_size=args.batch_size,
         shuffle=False,  # Keep order for reproducibility
-        num_workers=0,  # Use 0 to avoid multiprocessing issues
+        num_workers=8,  # Use 0 to avoid multiprocessing issues
         collate_fn=collate_fn,
     )
     

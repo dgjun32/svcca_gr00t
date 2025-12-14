@@ -582,14 +582,14 @@ if __name__ == "__main__":
     #layers = get_layers("/home/dongjun/gr00t_analysis/cached_features/model_nvidia_dataset_pnp_coke_to_plastic_pick_split.hdf5")
     for layer in layers:
         print(layer)
-        '''
+        
         seen_llm_layer_1 = load_feature(
             "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft_dataset_pnp_coke_to_plastic_place_split.hdf5", 
             layer)
         oracle_llm_layer_1 = load_feature(
             "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft-checkpoint-15000_dataset_segmented_depth_1_trash_separation_3_objs_unseen_251126_pnp_coke_to_plastic_place_split.hdf5", 
             layer)
-        '''
+        
         
         #print(f"Loading took {time.time() - start:.2f}s")
         #print(f"seen shape: {seen_llm_layer_1.shape}")
