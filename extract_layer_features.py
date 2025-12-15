@@ -140,7 +140,7 @@ if __name__ == "__main__":
                         elif feature_tensor.dtype == torch.float32:
                             feature_tensor = feature_tensor.to(torch.float16)
                         
-                        feature_array = feature_tensor.cpu().numpy()
+                        feature_array = feature_tensor[:, -1, :].cpu().numpy()
                         
                         # Handle vision encoder features: (batch_size * num_images, L, D) -> (batch_size, num_images, L, D)
                         # Vision encoder processes images separately, so first dim is batch_size * num_images
@@ -184,7 +184,7 @@ if __name__ == "__main__":
                         elif feature_tensor.dtype == torch.float32:
                             feature_tensor = feature_tensor.to(torch.float16)
                         
-                        feature_array = feature_tensor.cpu().numpy()
+                        feature_array = feature_tensor[:, -1, :].cpu().numpy()
                         
                         # Handle vision encoder features: (batch_size * num_images, L, D) -> (batch_size, num_images * L, D)
                         if feature_array.shape[0] != current_batch_size and feature_array.shape[0] % current_batch_size == 0:
