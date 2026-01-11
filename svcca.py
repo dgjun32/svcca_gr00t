@@ -1,8 +1,3 @@
-
-
-
-
-
 # Copyright 2018 Google Inc.
 # 
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,9 +19,12 @@ PyTorch + GPU version of CCA for deep networks.
 This is a GPU-accelerated version using PyTorch instead of NumPy.
 All computations are performed on GPU for faster processing.
 """
-
+import json
 import torch
 import numpy as np
+
+from open_file import load_feature, get_layers
+import time
 
 num_cca_trials = 5
 
@@ -184,10 +182,6 @@ def compute_ccas(sigma_xx, sigma_xy, sigma_yx, sigma_yy, epsilon,
     
     # Use randomized SVD for faster computation (especially for large matrices)
     # This computes only top-k singular values which is what we need for CCA
-    # Adjust n_components based on your needs:
-    # - 50: very fast, good for quick analysis
-    # - 100: balanced speed/accuracy (default)
-    # - 200: slower but more accurate
     n_components = min(arr.shape[0], arr.shape[1])  # Compute all components for accurate CCA
     
     if arr.shape[0] > 1000 or arr.shape[1] > 1000:  # Only use randomized for very large matrices
@@ -303,10 +297,6 @@ def get_cca_similarity(acts1, acts2, epsilon=0., threshold=0.98,
     
     # Recommendation: num_samples > num_neurons for statistical stability
     # But this is not strictly required due to regularization
-    if acts1.shape[0] >= acts1.shape[1] and verbose:
-        print(f"⚠️  Warning: num_neurons ({acts1.shape[0]}) >= num_samples ({acts1.shape[1]})")
-        print(f"   This may lead to unstable correlation estimates.")
-        print(f"   Consider using more samples or dimensionality reduction.")
     
     return_dict = {}
     
@@ -426,9 +416,7 @@ def get_cca_similarity(acts1, acts2, epsilon=0., threshold=0.98,
     # Summary statistics
     return_dict["mean"] = (torch.mean(s[:idx1]).item(), torch.mean(s[:idx2]).item())
     return_dict["sum"] = (torch.sum(s).item(), torch.sum(s).item())
-    import pandas as pd
-    if pd.isna(return_dict["mean"][0]):
-        breakpoint()
+
     return return_dict
 
 
@@ -493,125 +481,40 @@ def cca_dict_to_numpy(return_dict):
             numpy_dict[key] = value
     return numpy_dict
 
-from open_file import load_feature, get_layers
-import time
 
 if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--model_a_path", type=str, help="Path to hdf file of cached features of model A")
+    parser.add_argument("--model_b_path", type=str, help="Path to hdf file of cached features of model B")
+    args = parser.parse_args()
+    
     print("Loading features...")
     start = time.time()
-    layers = [
-        'backbone.llm.layer_0_step_0',
-        'backbone.llm.layer_1_step_0',
-        'backbone.llm.layer_2_step_0',
-        'backbone.llm.layer_3_step_0',
-        'backbone.llm.layer_4_step_0',
-        'backbone.llm.layer_5_step_0',
-        'backbone.llm.layer_6_step_0',
-        'backbone.llm.layer_7_step_0',
-        'backbone.llm.layer_8_step_0',
-        'backbone.llm.layer_9_step_0',
-        'backbone.llm.layer_10_step_0',
-        'backbone.llm.layer_11_step_0',
-        'action_head.dit.layer_0_step_0',
-        'action_head.dit.layer_1_step_0',
-        'action_head.dit.layer_2_step_0',
-        'action_head.dit.layer_3_step_0',
-        'action_head.dit.layer_4_step_0',
-        'action_head.dit.layer_5_step_0',
-        'action_head.dit.layer_6_step_0',
-        'action_head.dit.layer_7_step_0',
-        'action_head.dit.layer_8_step_0',
-        'action_head.dit.layer_9_step_0',
-        'action_head.dit.layer_10_step_0',
-        'action_head.dit.layer_11_step_0',
-        'action_head.dit.layer_12_step_0',
-        'action_head.dit.layer_13_step_0',
-        'action_head.dit.layer_14_step_0',
-        'action_head.dit.layer_15_step_0',
-        'action_head.dit.layer_0_step_1',
-        'action_head.dit.layer_1_step_1',
-        'action_head.dit.layer_2_step_1',
-        'action_head.dit.layer_3_step_1',
-        'action_head.dit.layer_4_step_1',
-        'action_head.dit.layer_5_step_1',
-        'action_head.dit.layer_6_step_1',
-        'action_head.dit.layer_7_step_1',
-        'action_head.dit.layer_8_step_1',
-        'action_head.dit.layer_9_step_1',
-        'action_head.dit.layer_10_step_1',
-        'action_head.dit.layer_11_step_1',
-        'action_head.dit.layer_12_step_1',
-        'action_head.dit.layer_13_step_1',
-        'action_head.dit.layer_14_step_1',
-        'action_head.dit.layer_15_step_1',
-        'action_head.dit.layer_0_step_2',
-        'action_head.dit.layer_1_step_2',
-        'action_head.dit.layer_2_step_2',
-        'action_head.dit.layer_3_step_2',
-        'action_head.dit.layer_4_step_2',
-        'action_head.dit.layer_5_step_2',
-        'action_head.dit.layer_6_step_2',
-        'action_head.dit.layer_7_step_2',
-        'action_head.dit.layer_8_step_2',
-        'action_head.dit.layer_9_step_2',
-        'action_head.dit.layer_10_step_2',
-        'action_head.dit.layer_11_step_2',
-        'action_head.dit.layer_12_step_2',
-        'action_head.dit.layer_13_step_2',
-        'action_head.dit.layer_14_step_2',
-        'action_head.dit.layer_15_step_2',
-        'action_head.dit.layer_0_step_3',
-        'action_head.dit.layer_1_step_3',
-        'action_head.dit.layer_2_step_3',
-        'action_head.dit.layer_3_step_3',
-        'action_head.dit.layer_4_step_3',
-        'action_head.dit.layer_5_step_3',
-        'action_head.dit.layer_6_step_3',
-        'action_head.dit.layer_7_step_3',
-        'action_head.dit.layer_8_step_3',
-        'action_head.dit.layer_9_step_3',
-        'action_head.dit.layer_10_step_3',
-        'action_head.dit.layer_11_step_3',
-        'action_head.dit.layer_12_step_3',
-        'action_head.dit.layer_13_step_3',
-        'action_head.dit.layer_14_step_3',
-        'action_head.dit.layer_15_step_3',
-    ]
     
     mean_cca_similarity = {}
-    #layers = get_layers("/home/dongjun/gr00t_analysis/cached_features/model_nvidia_dataset_pnp_coke_to_plastic_pick_split.hdf5")
+    layers = get_layers("Path to hdf file of cached features of model A or model B")  # NOTE: need to change this 
+    
     for layer in layers:
         print(layer)
-        
-        seen_llm_layer_1 = load_feature(
-            "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft_dataset_pnp_coke_to_plastic_place_split.hdf5", 
+        actv_model_a = load_feature(
+            args.model_a_path,  
             layer)
-        oracle_llm_layer_1 = load_feature(
-            "/home/dongjun/gr00t_analysis/cached_features/model_gr00t_3_objs_separation_seen_unseen_depth_1_fullft-checkpoint-15000_dataset_segmented_depth_1_trash_separation_3_objs_unseen_251126_pnp_coke_to_plastic_place_split.hdf5", 
+        actv_model_b = load_feature(
+            args.model_b_path, 
             layer)
         
-        
-        #print(f"Loading took {time.time() - start:.2f}s")
-        #print(f"seen shape: {seen_llm_layer_1.shape}")
-        #print(f"oracle shape: {oracle_llm_layer_1.shape}")
+        print(f"Loading took {time.time() - start:.2f}s")
+        print(f"Activation A shape: {actv_model_a.shape}")
+        print(f"Activation B shape: {actv_model_b.shape}")
         
         # Convert to torch and move to GPU
-        #print("\nPreparing activations...")
-        '''
+        print("\nPreparing activations...")
         start = time.time()
-        h_dim = seen_llm_layer_1.shape[-1]
-        #if len(seen_llm_layer_1.shape) == 3:
-        act1 = torch.from_numpy(seen_llm_layer_1).type(torch.float32).cuda().reshape(-1, h_dim)
-        act2 = torch.from_numpy(oracle_llm_layer_1).type(torch.float32).cuda().reshape(-1, h_dim)
-        '''
-        act = torch.randn(1000, 100).cuda()
-        #act1 = act
-        #act2 = act
-        act1 = act@torch.randn(100, 50).cuda()
-        act2 = act@torch.randn(100, 50).cuda()
-        #else:
-        #    act1 = torch.from_numpy(seen_llm_layer_1).cuda().mean(dim=1).mean(dim=1)
-        #    act2 = torch.from_numpy(oracle_llm_layer_1).cuda().mean(dim=1).mean(dim=1)
+        h_dim = actv_model_a.shape[-1]
+        if len(actv_model_a.shape) == 3:
+            act1 = torch.from_numpy(actv_model_a).type(torch.float32).cuda().reshape(-1, h_dim)
+            act2 = torch.from_numpy(actv_model_b).type(torch.float32).cuda().reshape(-1, h_dim)
         
         # Transpose to (D, N) format required by CCA
         act1 = act1.t()  # (D, N)
@@ -638,13 +541,12 @@ if __name__ == "__main__":
         print(f"SVCCA computation took {elapsed:.2f}s")
         print(f"Results:")
         print(f"  Mean CCA similarity: {return_dict['mean']}")
-        print(f"  Sum CCA coefficients: {return_dict['sum']}")
-        print(f"  Top 5 CCA coefficients: {return_dict['cca_coef1'][:5].cpu().numpy()}")
         print(f"{'='*50}")
         mean_cca_similarity[layer] = return_dict['mean'][0]
-        breakpoint()
     
-    print('mean_cca_similarity: ', mean_cca_similarity)
-    import json
+    # summarize the results
+    for k, v in mean_cca_similarity.items():
+        print(f"Layer: {k}, Mean CCA similarity: {v}\n")
+    
     with open('svcca_results/similarity_results.json', 'w') as f:
         json.dump(mean_cca_similarity, f)

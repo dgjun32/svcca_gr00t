@@ -6,13 +6,13 @@ from typing import List, Union
 
 def get_layers(hdf5_path: str) -> List[str]:
     """
-    HDF5 파일에서 모든 layer 이름(키)를 가져옵니다.
+    Get all layer names (keys) from an HDF5 file.
     
     Args:
-        hdf5_path: HDF5 파일 경로
+        hdf5_path: Path to the HDF5 file
         
     Returns:
-        layer 이름들의 리스트
+        List of layer names
     """
     with h5py.File(hdf5_path, 'r') as f:
         layers = list(f.keys())
@@ -21,14 +21,14 @@ def get_layers(hdf5_path: str) -> List[str]:
 
 def load_feature(hdf5_path: str, layer_name: str) -> np.ndarray:
     """
-    HDF5 파일에서 특정 layer의 feature를 로드합니다.
+    Load features from a specific layer in an HDF5 file.
     
     Args:
-        hdf5_path: HDF5 파일 경로
-        layer_name: 로드할 layer 이름
+        hdf5_path: Path to the HDF5 file
+        layer_name: Name of the layer to load
         
     Returns:
-        numpy array 형태의 feature
+        Features as a numpy array
     """
     with h5py.File(hdf5_path, 'r') as f:
         if layer_name not in f:
@@ -42,14 +42,14 @@ def load_feature(hdf5_path: str, layer_name: str) -> np.ndarray:
 
 def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> None:
     """
-    두 HDF5 파일의 feature를 layer별로 비교하여 차이의 norm을 출력합니다.
+    Compare features from two HDF5 files layer-by-layer and print the norm of differences.
     
     Args:
-        hdf5_path1: 첫 번째 모델의 HDF5 파일 경로
-        hdf5_path2: 두 번째 모델의 HDF5 파일 경로
-        device: 사용할 디바이스 ('cuda', 'cpu' 등). None이면 자동 선택
+        hdf5_path1: Path to the first model's HDF5 file
+        hdf5_path2: Path to the second model's HDF5 file
+        device: Device to use ('cuda', 'cpu', etc.). Auto-selected if None
     """
-    # Device 설정
+    # Set device
     if device is None:
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"Using device: {device}")
@@ -57,11 +57,11 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
     print(f"Model 2: {hdf5_path2}")
     print("=" * 80)
     
-    # 두 파일의 layer 목록 가져오기
+    # Get layer lists from both files
     layers1 = get_layers(hdf5_path1)
     layers2 = get_layers(hdf5_path2)
     
-    # 공통 layer 찾기
+    # Find common layers
     common_layers = [
         'backbone.llm.layer_0_step_0',
         'backbone.llm.layer_1_step_0',
@@ -143,49 +143,49 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
     
     print(f"Comparing {len(common_layers)} common layers...\n")
     
-    # 각 layer별로 비교
+    # Compare each layer
     results = []
     print_dict = {}
     for i, layer_name in enumerate(common_layers, 1):
         try:
-            # NumPy로 로드
+            # Load as NumPy arrays
             feature1_np = load_feature(hdf5_path1, layer_name)
             feature2_np = load_feature(hdf5_path2, layer_name)
             
-            # Shape 확인
+            # Check shapes
             if feature1_np.shape != feature2_np.shape:
                 print(f"[{i}/{len(common_layers)}] {layer_name}")
                 print(f"  [WARNING] Shape mismatch! Model1={feature1_np.shape}, Model2={feature2_np.shape}\n")
                 continue
             
-            # PyTorch tensor로 변환 및 GPU로 이동
+            # Convert to PyTorch tensors and move to device
             feature1 = torch.from_numpy(feature1_np).to(device)
             feature2 = torch.from_numpy(feature2_np).to(device)
             
-            # axis=-1 방향으로 normalize (각 벡터를 unit vector로)
+            # Normalize along axis=-1 (make each vector a unit vector)
             feature1_norm_per_vec = torch.norm(feature1, dim=-1, keepdim=True)
             feature2_norm_per_vec = torch.norm(feature2, dim=-1, keepdim=True)
             
             feature1_normalized = feature1 / (feature1_norm_per_vec + 1e-8)
             feature2_normalized = feature2 / (feature2_norm_per_vec + 1e-8)
             
-            # Normalized feature 간의 차이 계산
+            # Calculate difference between normalized features
             diff = feature1_normalized - feature2_normalized
             
-            # Difference의 L2 norm 계산
+            # Calculate L2 norm of the difference
             diff_norm = torch.norm(diff).item()
             
             # Mean absolute difference (per element)
             mean_abs_diff = torch.mean(torch.abs(diff)).item()
             
-            # 원본 feature norm (참고용)
+            # Original feature norms (for reference)
             feature1_norm = torch.mean(feature1_norm_per_vec).item()
             feature2_norm = torch.mean(feature2_norm_per_vec).item()
             
-            # 결과 저장 (CPU로 이동)
+            # Store result (move to CPU)
             print_dict[layer_name] = mean_abs_diff
             
-            # 결과 저장
+            # Store result
             result = {
                 'layer': layer_name,
                 'shape': feature1_np.shape,
@@ -196,7 +196,7 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
             }
             results.append(result)
             
-            # 각 레이어별로 출력
+            # Print per-layer results
             print(f"[{i}/{len(common_layers)}] {layer_name}")
             print(f"  Shape: {feature1_np.shape}")
             print(f"  Diff Norm (normalized features): {diff_norm:.6f}")
@@ -204,7 +204,7 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
             print(f"  Avg Feature Norms: Model1={feature1_norm:.6f}, Model2={feature2_norm:.6f}")
             print()
             
-            # GPU 메모리 해제
+            # Free GPU memory
             del feature1, feature2, feature1_normalized, feature2_normalized, diff
             torch.cuda.empty_cache() if device == 'cuda' else None
             
@@ -213,7 +213,7 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
             print(f"  [ERROR] {e}\n")
     
     print(print_dict)
-    # 통계 요약 출력
+    # Print summary statistics
     if results:
         print("=" * 80)
         print("SUMMARY STATISTICS")
@@ -228,7 +228,7 @@ def compare_features(hdf5_path1: str, hdf5_path2: str, device: str = None) -> No
         print(f"  Median: {np.median(diff_norms):.6f}")
         print(f"  Std:    {np.std(diff_norms):.6f}")
         
-        # 가장 차이가 큰 레이어 출력
+        # Print layers with largest differences
         print()
         print("Top 5 layers with largest difference:")
         sorted_results = sorted(results, key=lambda x: x['diff_norm'], reverse=True)

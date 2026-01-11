@@ -2,9 +2,9 @@ import os
 import sys
 # Disable flash attention to avoid ABI compatibility issues
 # Add gr00t to path if needed
-gr00t_path = "/home/dongjun/contrastive_gr00t"
-if gr00t_path not in sys.path:
-    sys.path.insert(0, gr00t_path)
+GR00T_PATH = "PATH TO GR00T REPO"
+if GR00T_PATH not in sys.path:
+    sys.path.insert(0, GR00T_PATH)
     
     
 import torch
@@ -31,9 +31,9 @@ from feature_extraction_utils import extract_features_from_forward, Intermediate
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--dataset_path", type=str, default="/home/dongjun/gr00t_analysis/svcca_datasets/trash_separation_3_objs_unseen_251124_depth_1")
+    parser.add_argument("--dataset_path", type=str, help="Path to the dataset")
     parser.add_argument("--model_path", type=str, default="nvidia/GR00T-N1.5-3B")
-    parser.add_argument("--cache_path", type=str, default="/home/dongjun/gr00t_analysis/cache")
+    parser.add_argument("--cache_path", type=str, help="Path to cache the internal activations")
     parser.add_argument("--batch_size", type=int, default=8, help="Batch size for feature extraction")
     args = parser.parse_args()
 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
     # Get eagle processor
     eagle_processor = build_eagle_processor(
-        '/home/dongjun/contrastive_gr00t/gr00t/model/backbone/eagle2_hg_model',
+        f'{GR00T_PATH}/gr00t/model/backbone/eagle2_hg_model',
         )
     eagle_processor.tokenizer.padding_side = "left"
 
@@ -224,7 +224,6 @@ if __name__ == "__main__":
         
     except KeyboardInterrupt:
         print("\n\n" + "="*60)
-        print("⚠️  Interrupted by user (Ctrl+C)!")
         print(f"Progress saved: {current_idx}/{total_samples} samples processed ({current_idx/total_samples*100:.1f}%)")
         print("="*60)
         
@@ -247,7 +246,7 @@ if __name__ == "__main__":
         torch.cuda.empty_cache()
         gc.collect()
         
-        print("\n✓ Cleanup completed. File is safely saved with all processed data.")
+        print("\nFile is safely saved with all processed data.")
         
         
 

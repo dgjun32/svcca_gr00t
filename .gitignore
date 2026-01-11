@@ -1,5 +1,5 @@
 svcca_dataset/
-dataset/
+datasets/
 cached_features/
 cache/
 checkpoints/

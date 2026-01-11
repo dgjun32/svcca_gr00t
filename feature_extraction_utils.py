@@ -58,27 +58,27 @@ class IntermediateFeatureExtractor:
         self.features.clear()
         
         # 1. Language Model - Last layer only (Qwen3DecoderLayer)
-        #llm_layers = self.model.backbone.eagle_model.language_model.model.layers
-        #last_llm_idx = len(llm_layers) - 1
-        #hook_name = f"backbone.llm.layer_{last_llm_idx}"
-        #hook = llm_layers[last_llm_idx].register_forward_hook(self._create_hook(hook_name))
-        #self.hooks.append(hook)
-        #print(f"Registered hook: {hook_name}")
+        llm_layers = self.model.backbone.eagle_model.language_model.model.layers
+        last_llm_idx = len(llm_layers) - 1
+        hook_name = f"backbone.llm.layer_{last_llm_idx}"
+        hook = llm_layers[last_llm_idx].register_forward_hook(self._create_hook(hook_name))
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
         
         # 2. Action Head State Encoder - CategorySpecificMLP (layer1, layer2)
-        #hook_name = "action_head.state_encoder.layer1"
-        #hook = self.model.action_head.state_encoder.layer1.register_forward_hook(
-        #    self._create_hook(hook_name)
-        #)
-        #self.hooks.append(hook)
-        #print(f"Registered hook: {hook_name}")
+        hook_name = "action_head.state_encoder.layer1"
+        hook = self.model.action_head.state_encoder.layer1.register_forward_hook(
+            self._create_hook(hook_name)
+        )
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
         
-        #hook_name = "action_head.state_encoder.layer2"
-        #hook = self.model.action_head.state_encoder.layer2.register_forward_hook(
-        #    self._create_hook(hook_name)
-        #)
-        #self.hooks.append(hook)
-        #print(f"Registered hook: {hook_name}")
+        hook_name = "action_head.state_encoder.layer2"
+        hook = self.model.action_head.state_encoder.layer2.register_forward_hook(
+            self._create_hook(hook_name)
+        )
+        self.hooks.append(hook)
+        print(f"Registered hook: {hook_name}")
         
         # 3. Action Head VL Self-Attention - SelfAttentionTransformer blocks
         vl_attn_blocks = self.model.action_head.vl_self_attention.transformer_blocks
@@ -90,12 +90,12 @@ class IntermediateFeatureExtractor:
                 print(f"Registered hook: {hook_name}")
         
         # 4. Action Head DiT - 12 x BasicTransformerBlock
-        #dit_blocks = self.model.action_head.model.transformer_blocks
-        #for idx, block in enumerate(dit_blocks):
-        #    hook_name = f"action_head.dit.layer_{idx}"
-        #    hook = block.register_forward_hook(self._create_hook(hook_name))
-        #    self.hooks.append(hook)
-        #    print(f"Registered hook: {hook_name}")
+        dit_blocks = self.model.action_head.model.transformer_blocks
+        for idx, block in enumerate(dit_blocks):
+            hook_name = f"action_head.dit.layer_{idx}"
+            hook = block.register_forward_hook(self._create_hook(hook_name))
+            self.hooks.append(hook)
+            print(f"Registered hook: {hook_name}")
         
         print(f"\nTotal hooks registered: {len(self.hooks)}")
         return self
