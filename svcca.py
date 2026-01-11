@@ -19,12 +19,13 @@ PyTorch + GPU version of CCA for deep networks.
 This is a GPU-accelerated version using PyTorch instead of NumPy.
 All computations are performed on GPU for faster processing.
 """
+import os
+import time
 import json
 import torch
 import numpy as np
 
 from open_file import load_feature, get_layers
-import time
 
 num_cca_trials = 5
 
@@ -485,8 +486,8 @@ def cca_dict_to_numpy(return_dict):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model_a_path", type=str, help="Path to hdf file of cached features of model A")
-    parser.add_argument("--model_b_path", type=str, help="Path to hdf file of cached features of model B")
+    parser.add_argument("--actv_a_path", type=str, help="Path to hdf file of cached features of model A")
+    parser.add_argument("--actv_b_path", type=str, help="Path to hdf file of cached features of model B")
     args = parser.parse_args()
     
     print("Loading features...")
@@ -498,10 +499,10 @@ if __name__ == "__main__":
     for layer in layers:
         print(layer)
         actv_model_a = load_feature(
-            args.model_a_path,  
+            args.actv_a_path,  
             layer)
         actv_model_b = load_feature(
-            args.model_b_path, 
+            args.actv_b_path, 
             layer)
         
         print(f"Loading took {time.time() - start:.2f}s")
@@ -548,5 +549,8 @@ if __name__ == "__main__":
     for k, v in mean_cca_similarity.items():
         print(f"Layer: {k}, Mean CCA similarity: {v}\n")
     
+    if not os.path.exists('svcca_results'):
+        os.makedirs('svcca_results', exist_ok=True)
+        
     with open('svcca_results/similarity_results.json', 'w') as f:
         json.dump(mean_cca_similarity, f)

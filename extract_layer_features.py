@@ -65,7 +65,7 @@ if __name__ == "__main__":
     eagle_processor.tokenizer.padding_side = "left"
 
     # get dataset
-    data_config_cls = DATA_CONFIG_MAP["bimanual_piper"]
+    data_config_cls = DATA_CONFIG_MAP["bimanual_piper"] # NOTE: Need to change this depending on the embodiment
     modality_configs = data_config_cls.modality_config()
     transforms = data_config_cls.transform()
     embodiment_tag = EmbodimentTag("new_embodiment")

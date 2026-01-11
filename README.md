@@ -25,6 +25,7 @@ If you have already setup the Isaac-GR00T in your machine, move to step 2.
 
 Extract and cache model activations in HDF5 format for a specific dataset.
 Before running the script, set the GR00T_PATH at `line 5` in `extract_layer_features.py`
+Also, set the data_config at `line 68` depending on the embodiment.
 
 ```bash
 bash run_extract_activations.sh
